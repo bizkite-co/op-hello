@@ -1,0 +1,157 @@
+#!/usr/bin/env bash
+# Read 1Password references.
+#   op-hello read op://Vault/Item/field [op://Vault/Item/other ...]
+#   op-hello resolve VALUE          # print VALUE, or read it when it starts with op://
+#
+# From WSL this calls Windows op.exe so 1Password can raise Windows Hello.
+# A Linux `op` session does not. On macOS and Linux, this calls `op read`.
+
+set -euo pipefail
+
+ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+TIMEOUT="${OP_HELLO_TIMEOUT:-120}"
+MAX_REFS=8
+
+usage() {
+  cat <<'EOF'
+Usage:
+  op-hello read op://Vault/Item/field [op://Vault/Item/other ...]
+  op-hello resolve VALUE
+
+VALUE is printed unchanged unless it starts with op://.
+Each secret is one line on stdout.
+EOF
+}
+
+scrub() {
+  sed -E \
+    -e 's#op://[^[:space:]]+#the 1Password item#g' \
+    -e '/UNC paths are not supported/d' \
+    -e '/CMD.EXE was started/d' \
+    -e '/Defaulting to Windows directory/d' \
+    -e '/^At /d' \
+    -e '/^CategoryInfo/d' \
+    -e '/^FullyQualifiedErrorId/d' \
+    -e '/^\+/d' \
+    -e '/^[[:space:]]*$/d'
+}
+
+hint_for() {
+  local low
+  low=$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')
+  if [[ "$low" == *requestdelegatedsession* || "$low" == *"cannot setup session"* || "$low" == *"error initializing client"* ]]; then
+    printf '%s\n' "1Password could not open a session. Unlock the app if it is locked. If it is already unlocked, check the network; a router or DNS failure can cause this."
+  elif [[ "$low" == *"dial tcp"* || "$low" == *"no such host"* || "$low" == *"network is unreachable"* || "$low" == *"connection refused"* || "$low" == *"i/o timeout"* || "$low" == *"tls handshake"* ]]; then
+    printf '%s\n' "The machine could not reach 1Password. Check the network connection."
+  elif [[ "$low" == *"not signed in"* || "$low" == *"not authenticated"* ]]; then
+    printf '%s\n' "Unlock 1Password and approve the Windows Hello prompt."
+  fi
+}
+
+is_wsl() {
+  grep -qi microsoft /proc/version 2>/dev/null
+}
+
+run_real() {
+  if [[ -n "${OP_HELLO_DELEGATE:-}" ]]; then
+    "$OP_HELLO_DELEGATE" "$@"
+    return
+  fi
+  local ps_exe="/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe"
+  if is_wsl && [[ -f "$ps_exe" ]]; then
+    local win_ps1 argv=()
+    win_ps1=$(wslpath -w "$ROOT/windows/op-read.ps1")
+    argv=("$ps_exe" -NoProfile -ExecutionPolicy Bypass -File "$win_ps1" "$@")
+    if [[ -x /init ]]; then
+      argv=(/init "${argv[@]}")
+    fi
+    (
+      cd /mnt/c/Windows
+      if command -v timeout >/dev/null 2>&1; then
+        timeout "$TIMEOUT" "${argv[@]}"
+      else
+        "${argv[@]}"
+      fi
+    )
+    return
+  fi
+  if command -v op >/dev/null 2>&1; then
+    local ref
+    for ref in "$@"; do
+      op read "$ref"
+    done
+    return
+  fi
+  printf '%s\n' "op-hello: Windows PowerShell and the op CLI are both missing." >&2
+  return 1
+}
+
+run_captured() {
+  local outfile errfile rc scrubbed hint
+  outfile=$(mktemp)
+  errfile=$(mktemp)
+  set +e
+  run_real "$@" >"$outfile" 2>"$errfile"
+  rc=$?
+  set -e
+  if [[ "$rc" -ne 0 ]]; then
+    scrubbed=$(scrub <"$errfile" || true)
+    hint=$(hint_for "$scrubbed" || true)
+    if [[ -n "$hint" ]]; then
+      printf '%s\n' "$hint" >&2
+    fi
+    if [[ -n "$scrubbed" ]]; then
+      printf '%s\n' "$scrubbed" >&2
+    elif [[ "$rc" -eq 124 ]]; then
+      printf '%s\n' "1Password Windows Hello timed out. Approve the popup; this fails if you are away." >&2
+    else
+      printf '%s\n' "1Password read failed (exit $rc)." >&2
+    fi
+    rm -f "$outfile" "$errfile"
+    exit "$rc"
+  fi
+  cat "$outfile"
+  rm -f "$outfile" "$errfile"
+}
+
+require_refs() {
+  local ref
+  if [[ "$#" -lt 1 || "$#" -gt "$MAX_REFS" ]]; then
+    printf '%s\n' "op-hello read takes 1 to $MAX_REFS op:// references." >&2
+    exit 2
+  fi
+  for ref in "$@"; do
+    if [[ "$ref" != op://* ]]; then
+      printf '%s\n' "1Password references must start with op://." >&2
+      exit 2
+    fi
+  done
+}
+
+cmd=${1:-}
+case "$cmd" in
+  read)
+    shift
+    require_refs "$@"
+    run_captured "$@"
+    ;;
+  resolve)
+    shift
+    if [[ "$#" -ne 1 ]]; then
+      usage >&2
+      exit 2
+    fi
+    if [[ "$1" == op://* ]]; then
+      run_captured "$1"
+    else
+      printf '%s\n' "$1"
+    fi
+    ;;
+  -h|--help|help|"")
+    usage
+    ;;
+  *)
+    usage >&2
+    exit 2
+    ;;
+esac
