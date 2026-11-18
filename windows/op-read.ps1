@@ -72,7 +72,8 @@ function Read-Cache {
 
 function Get-Cached([string]$Ref) {
     $cache = Read-Cache
-    $key = Get-RefKey $Ref
+    $account = if ($env:OP_HELLO_ACCOUNT) { $env:OP_HELLO_ACCOUNT } else { $env:OP_ACCOUNT }
+    $key = Get-RefKey "$account`n$Ref"
     if (-not $cache.ContainsKey($key)) { return $null }
     $entry = $cache[$key]
     if ([int64]$entry.exp -lt [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()) { return $null }
@@ -92,7 +93,8 @@ function Set-Cached([string]$Ref, [string]$Value) {
         $null,
         [Security.Cryptography.DataProtectionScope]::CurrentUser)
     $cache = Read-Cache
-    $cache[(Get-RefKey $Ref)] = [pscustomobject]@{
+    $account = if ($env:OP_HELLO_ACCOUNT) { $env:OP_HELLO_ACCOUNT } else { $env:OP_ACCOUNT }
+    $cache[(Get-RefKey "$account`n$Ref")] = [pscustomobject]@{
         exp = [DateTimeOffset]::UtcNow.Add($cacheTtl).ToUnixTimeSeconds()
         blob = [Convert]::ToBase64String($protected)
     }
@@ -104,7 +106,12 @@ function Invoke-OpRead([string]$Ref) {
     if ($cached) { return $cached }
     $psi = New-Object System.Diagnostics.ProcessStartInfo
     $psi.FileName = $op
-    $psi.Arguments = "read `"$Ref`""
+    $account = if ($env:OP_HELLO_ACCOUNT) { $env:OP_HELLO_ACCOUNT } else { $env:OP_ACCOUNT }
+    if ($account) {
+        $psi.Arguments = "read `"$Ref`" --account `"$account`""
+    } else {
+        $psi.Arguments = "read `"$Ref`""
+    }
     $psi.RedirectStandardOutput = $true
     $psi.RedirectStandardError = $true
     $psi.UseShellExecute = $false

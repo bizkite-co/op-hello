@@ -76,9 +76,14 @@ run_real() {
     return
   fi
   if command -v op >/dev/null 2>&1; then
-    local ref
+    local ref account args=()
+    account="${OP_HELLO_ACCOUNT:-${OP_ACCOUNT:-}}"
     for ref in "$@"; do
-      op read "$ref"
+      args=(read "$ref")
+      if [[ -n "$account" ]]; then
+        args+=(--account "$account")
+      fi
+      op "${args[@]}"
     done
     return
   fi

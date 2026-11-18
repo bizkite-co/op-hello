@@ -1,9 +1,15 @@
 [project]
 name = "ophello"
-version = "0.1.0"
-description = "Read 1Password op:// secrets through Windows Hello"
+version = "0.2.0"
+description = "Portable 1Password op:// secret reader with Windows Hello support"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.9"
+
+[project.scripts]
+op-hello = "ophello.cli:main"
+
+[project.optional-dependencies]
+sdk = ["onepassword-sdk>=0.4.2"]
 
 [build-system]
 requires = ["hatchling"]
@@ -18,3 +24,8 @@ packages = ["src/ophello"]
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"bin/op-hello" = "ophello/bin/op-hello"
+"windows/op-read.ps1" = "ophello/windows/op-read.ps1"
+"windows/ahk-pause.ps1" = "ophello/windows/ahk-pause.ps1"

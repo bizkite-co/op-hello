@@ -1,0 +1,18 @@
+# op-hello
+
+`op-hello` is a Python library and CLI for securely reading 1Password `op://`
+references with native CLI, service-account SDK, Windows Hello/DPAPI, and WSL
+fallbacks. Applications should use the public `ophello` API rather than
+reimplement credential handling.
+
+- [README](README.md): installation, API, CLI, environment configuration.
+- [AGENTS.md](AGENTS.md): implementation, security, packaging, and release rules.
+- [API module](src/ophello/__init__.py): `read`, `resolve`, `clear_cache`, `is_available`.
+- [CLI module](src/ophello/cli.py): installed `op-hello` entry point.
+- [Shell helper](bin/op-hello): cross-platform CLI and fallback behavior.
+- [Windows reader](windows/op-read.ps1): Windows Hello, account selection, DPAPI cache.
+- [Tests](tests/test_ophello.py): API and CLI behavior.
+
+Security: secret values are returned only to the caller; never log or expose
+references or values in diagnostics. Preserve account-scoped caching and all
+platform fallbacks.

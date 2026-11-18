@@ -8,10 +8,33 @@ export API_TOKEN=op://Private/Service/credential
 op-hello resolve "$API_TOKEN"
 ```
 
+Install the published package, or use this checkout for local development:
+
+```bash
+uv add ophello
+uv add --editable ../op-hello
+```
+
+Install the optional SDK extra to use service-account authentication:
+
+```bash
+uv add "ophello[sdk]"
+```
+
+The public Python API is suitable for application adapters and plugins. It
+tries `OP_SERVICE_ACCOUNT_TOKEN` with the optional 1Password SDK, then native
+`op read`, then the bundled platform helper and WSL Windows CLI fallback. A
+process-local cache avoids repeating reads; Windows also keeps a
+DPAPI-protected cache for the configured TTL. `clear_cache()` clears the current
+process cache; the Windows cache expires according to `OP_HELLO_CACHE_TTL`.
+`OP_HELLO_ACCOUNT` or the existing `OP_ACCOUNT` selects an account.
+
 Python projects that already use this checkout:
 
 ```python
-from ophello import resolve
+import os
+
+from ophello import clear_cache, read, resolve
 
 token = resolve(os.environ["API_TOKEN"])
 ```
@@ -45,18 +68,34 @@ take the time:
 | `windows/op-read.ps1` | Windows Hello, DPAPI cache, optional AutoHotkey pause |
 | `src/ophello/` | `resolve()` and `read()` for Python |
 
-PowerShell is the Windows implementation because Hello, DPAPI, and AutoHotkey are Windows APIs. A Go or Rust binary would still shell out to `op.exe` and reimplement those calls. On macOS and Linux, `bin/op-hello` calls `op read` and the system biometric prompt is the 1Password app's own. Python is only the import for a Python app.
+PowerShell is the Windows implementation because Hello, DPAPI, and AutoHotkey are Windows APIs. A Go or Rust binary would still shell out to `op.exe` and reimplement those calls. On macOS and Linux, `op-hello` calls `op read` and the system biometric prompt is the 1Password app's own. The installed CLI and Python library share this same platform helper.
 
 ## Use it from another language
 
 Put `bin` on `PATH` and run `op-hello read`. Exit 0 and one line per secret means success. Anything else is on stderr.
 
-An editable Python install from this repo finds `bin/op-hello` next to `src/`. `OP_HELLO_BIN` overrides that path.
-
-```bash
-uv add --editable ../op-hello
-```
+The installed `op-hello` command and Python library both use the same platform helper. `OP_HELLO_BIN` overrides the helper path for deployments that provide their own adapter.
 
 ## Limits
 
 One command accepts up to eight references. The desktop app has to be unlocked, and someone has to be present for the first prompt. The call fails after `OP_HELLO_TIMEOUT` seconds (default 120) if nobody approves it.
+
+
+## Release
+
+Use the local `verkit` CLI at `~/repos/verkit` to manage the semantic version:
+
+```bash
+uv run --project ~/repos/verkit verkit inspect
+uv run --project ~/repos/verkit verkit promote patch --no-amend
+uv run --project ~/repos/verkit verkit tag --no-push
+uv build
+uv publish
+```
+
+`verkit promote` and `verkit tag` commit the version bump and create a matching
+local tag; neither uploads artifacts to PyPI. When an `origin` remote is
+configured, use `verkit release patch` instead. Configure PyPI trusted publishing or provide credentials
+through `uv publish`'s supported environment mechanism; never save tokens in
+this repository. Verify the published version and install it from PyPI after
+upload.
