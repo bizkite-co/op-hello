@@ -1,6 +1,6 @@
 [project]
 name = "ophello"
-version = "0.2.0"
+version = "0.2.1"
 description = "Portable 1Password op:// secret reader with Windows Hello support"
 readme = "README.md"
 requires-python = ">=3.9"
