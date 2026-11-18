@@ -1,0 +1,39 @@
+name: Publish to PyPI
+
+on:
+  push:
+    tags:
+      - "v*"
+  # The v0.2.1 release tag predates this workflow. This lets the initial
+  # release be published manually without moving or recreating that tag.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Build and publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # Required for PyPI trusted publishing.
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install
+
+      - name: Build package
+        run: uv build
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
