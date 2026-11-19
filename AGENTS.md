@@ -10,8 +10,9 @@ references. Applications should use `op_hello.read`, `op_hello.resolve`, and
 
 - Reader order: optional 1Password service-account SDK, native `op` CLI, the
   packaged platform helper, then the WSL `op.exe` fallback.
-- Linux/macOS use the shell helper and the native 1Password CLI. Windows uses
-  PowerShell, Windows Hello integration, and DPAPI-protected disk caching.
+- Windows Python and CLI calls use the PowerShell helper, Windows Hello integration,
+  and DPAPI-protected disk caching. WSL delegates through that same helper. Linux/macOS
+  use the shell helper and native 1Password CLI.
 - The process cache is keyed by account and reference. `read()` accepts one to
   eight references; `resolve()` leaves literal values unchanged.
 - `OP_HELLO_ACCOUNT` takes precedence over `OP_ACCOUNT`; the `account=` API
@@ -46,5 +47,8 @@ references. Applications should use `op_hello.read`, `op_hello.resolve`, and
 - Before publishing, inspect the wheel and sdist to confirm both CLI helpers
   are included. After upload, verify the release page and install the exact
   version into a clean environment.
+- Keep the `op-hello` and `oph` console entry points mapped to the same CLI.
+  `oph version release <major|minor|patch>` must use Verkit's `release_version`
+  API and keep `--no-push` available for a local release preview.
 - Use the project's configured Python minimum and keep user-facing docs,
   package metadata, CLI help, and agent guidance in sync.

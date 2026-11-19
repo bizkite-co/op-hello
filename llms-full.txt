@@ -1,0 +1,145 @@
+# op-hello: full guide for coding agents
+
+> `op-hello` is a portable 1Password secret reader. It resolves `op://` references through the optional 1Password service-account SDK, the native CLI, or platform helpers. Windows and WSL can use the Windows desktop integration and Windows Hello; macOS and Linux use their native 1Password CLI.
+
+## Names and purpose
+
+- PyPI distribution: `op-hello`
+- Command-line programs: `op-hello` and its short alias `oph`
+- Python import package: `op_hello`
+- GitHub repository: `bizkite-co/op-hello`
+
+The project began by addressing the WSL case: a Linux 1Password CLI session does not raise the Windows desktop app's Hello approval. The bundled helper invokes Windows PowerShell and `op.exe` with a Windows working directory. The same package also gives native Windows applications and scripts a shared reader, cache, and CLI interface, and provides a simpler native-CLI wrapper on macOS and Linux.
+
+## Platform behavior
+
+The Python API tries these readers in order:
+
+1. The optional 1Password SDK when `OP_SERVICE_ACCOUNT_TOKEN` is set. If the SDK is unavailable or authentication fails, resolution falls through to the CLI readers.
+2. The native `op read` command on systems where the native command is usable.
+3. The bundled platform helper. Native Windows runs `windows/op-read.ps1` through PowerShell. On WSL, the Bash helper detects WSL and launches Windows PowerShell and `op.exe`. On macOS and Linux, the helper invokes native `op read`.
+4. A last-resort WSL Windows CLI path for `op.exe`.
+
+The installed `op-hello` command dispatches to the Windows PowerShell helper on Windows and to the bundled shell helper elsewhere. On WSL, the shell helper uses the Windows desktop CLI integration. On macOS and Linux, it calls the native 1Password CLI; it does not provide Windows Hello on those platforms.
+
+## Installation
+
+Install the distribution and its CLI with uv:
+
+```bash
+uv add op-hello
+```
+
+For service-account SDK support, install the optional extra:
+
+```bash
+uv add "op-hello[sdk]"
+```
+
+For local development from a sibling checkout:
+
+```bash
+uv add --editable ../op-hello
+```
+
+The project requires Python 3.9 or newer. The `op-hello` and `oph` commands are installed through `[project.scripts]` and use the same entry point. The wheel includes the shell helper and the Windows PowerShell helpers.
+
+## Python API
+
+The supported public API is `read`, `resolve`, `is_available`, and `clear_cache`:
+
+```python
+import os
+from op_hello import clear_cache, is_available, read, resolve
+
+# Resolve a single value; literal values pass through unchanged.
+api_token = resolve(os.environ["API_TOKEN"])
+
+# Read several references in one call. Values are returned in input order.
+client_id, client_secret = read(
+    "op://Private/Service/client-id",
+    "op://Private/Service/password",
+)
+
+# Clear process-cached values after a secret rotation.
+clear_cache()
+```
+
+`read(*refs, account=None)` accepts one to eight non-empty `op://` references and returns a list of strings in the same order. It rejects non-reference inputs and reports failures as exceptions. `resolve(value, account=None)` resolves a value that starts with `op://`; otherwise it returns the trimmed literal unchanged. `is_available()` reports whether a service-account token, CLI, or bundled helper is available.
+
+The optional `account` argument takes precedence over `OP_HELLO_ACCOUNT`, which takes precedence over `OP_ACCOUNT`. A selected account is passed through to the CLI helpers.
+
+## Command-line interface
+
+`op-hello` and `oph` are equivalent command names. `oph version` prints the
+project version; `oph version release patch` uses Verkit to bump, commit, tag,
+and push a patch release. Add `--no-push` to keep the release commit and tag local.
+
+Read one or more references:
+
+```bash
+op-hello read op://Private/Service/client-id op://Private/Service/password
+```
+
+Resolve a reference or print a literal value:
+
+```bash
+op-hello resolve "$API_TOKEN"
+```
+
+A successful read writes one secret per line to stdout. Diagnostics go to stderr. The command accepts up to eight references per invocation. Avoid shell tracing or commands that echo resolved values into logs.
+
+Other languages can invoke `op-hello read` as a subprocess and parse one output line per reference. The CLI's stdout is intentionally kept to secret values only.
+
+## Windows and WSL setup
+
+For Windows desktop integration:
+
+1. Install the 1Password CLI and desktop app.
+2. In the desktop app, enable **Settings → Developer → Integrate with 1Password CLI**.
+3. Keep the app unlocked and be present to approve the first Hello prompt.
+4. Use `op-hello` from PowerShell, or import `read`/`resolve` from `op_hello` in a Python application.
+
+The Windows PowerShell helper calls `op.exe`, stores a user-scoped DPAPI-protected cache under `%LOCALAPPDATA%\op-hello\`, and can pause AutoHotkey while the Hello prompt is displayed. AutoHotkey handling is optional and skipped if the helper is absent.
+
+From WSL, the shell helper invokes Windows PowerShell and the Windows `op.exe`; it starts the process with its working directory set to `C:\Windows` and uses `/init` when available. This lets the Windows desktop app raise Hello instead of relying on a separate Linux `op` session. If Windows interop is unavailable, the helper can use a native Linux `op` command.
+
+## Caching
+
+- The Python API keeps successful secret values in process memory, keyed by selected account and reference. Use `clear_cache()` after rotating a secret.
+- The Windows helper also stores values encrypted with DPAPI for the current Windows user. Its default TTL is 15 minutes.
+- The Windows cache key is derived from the account and reference; the reference itself is not stored in the cache key as plaintext.
+- Literal values passed to `resolve()` are not sent to 1Password.
+
+## Configuration
+
+| Variable | Purpose |
+|---|---|
+| `OP_SERVICE_ACCOUNT_TOKEN` | Enables the optional 1Password SDK reader. |
+| `OP_HELLO_ACCOUNT` | Preferred default account for reads. |
+| `OP_ACCOUNT` | Existing account-selection fallback when `OP_HELLO_ACCOUNT` is unset. |
+| `OP_HELLO_TIMEOUT` | Helper timeout in seconds; defaults to 120. |
+| `OP_HELLO_CACHE_TTL` | Windows DPAPI cache lifetime in minutes; defaults to 15. |
+| `OP_EXE` | Optional Windows path override for `op.exe`. |
+| `OP_AHK_PAUSE` | Optional path override for the AutoHotkey pause helper. |
+| `OP_HELLO_BIN` | Optional override for the bundled shell helper in the Python API. |
+| `OP_HELLO_DELEGATE` | Optional delegate command used by the shell helper. |
+| `OP_HELLO_INTEGRATION_NAME` | Optional SDK integration name; defaults to `op-hello`. |
+| `OP_HELLO_INTEGRATION_VERSION` | Optional SDK integration version; defaults to the installed package version. |
+
+## Security and limits
+
+Secret values should be handled as sensitive data by the calling application. The library returns them only to the API caller or successful CLI stdout; do not log, commit, or display them in diagnostics. The helpers remove `op://` references from diagnostic output. Windows disk-cache values are protected with DPAPI for the current user; the Python process cache is in memory.
+
+The desktop app must be available for desktop-integrated reads. A person must approve the initial Hello prompt; the call fails when the configured timeout expires without approval. The SDK route is intended for service-account authentication and may not raise a desktop Hello prompt.
+
+## Source map
+
+- [README](README.md): quick start, platform overview, and release process.
+- [Agent implementation guide](AGENTS.md): security rules, architecture, and Verkit workflow.
+- [Python API](src/op_hello/__init__.py): reader selection, account precedence, and process cache.
+- [Python CLI entry point](src/op_hello/cli.py): native Windows versus shell dispatch.
+- [Shell helper](bin/op-hello): CLI validation, WSL detection, and Unix/WSL reader routing.
+- [Windows helper](windows/op-read.ps1): Windows CLI invocation, DPAPI cache, and AutoHotkey handling.
+- [Package metadata](pyproject.toml): distribution name, import package, CLI entry point, and included helper files.
+- [Publish workflow](.github/workflows/publish.yml): tag-based PyPI trusted publishing.

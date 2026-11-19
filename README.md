@@ -22,9 +22,10 @@ uv add "op-hello[sdk]"
 ```
 
 The public Python API is suitable for application adapters and plugins. It
-tries `OP_SERVICE_ACCOUNT_TOKEN` with the optional 1Password SDK, then native
-`op read`, then the bundled platform helper and WSL Windows CLI fallback. A
-process-local cache avoids repeating reads; Windows also keeps a
+tries `OP_SERVICE_ACCOUNT_TOKEN` with the optional 1Password SDK, then the
+platform CLI/helper: native Windows uses PowerShell and `op.exe`, WSL delegates
+to Windows PowerShell and the desktop integration, and macOS/Linux use native
+`op read`. A process-local cache avoids repeating reads; Windows also keeps a
 DPAPI-protected cache for the configured TTL. `clear_cache()` clears the current
 process cache; the Windows cache expires according to `OP_HELLO_CACHE_TTL`.
 `OP_HELLO_ACCOUNT` or the existing `OP_ACCOUNT` selects an account.
@@ -81,21 +82,17 @@ The installed `op-hello` command and Python library both use the same platform h
 One command accepts up to eight references. The desktop app has to be unlocked, and someone has to be present for the first prompt. The call fails after `OP_HELLO_TIMEOUT` seconds (default 120) if nobody approves it.
 
 
-## Release
+## CLI aliases and releases
 
-Use the local `verkit` CLI at `~/repos/verkit` to manage the semantic version:
+`op-hello` is the descriptive command for reading secrets. `oph` is its short
+alias and also provides project version and release commands:
 
 ```bash
-uv run --project ~/repos/verkit verkit inspect
-uv run --project ~/repos/verkit verkit promote patch --no-amend
-uv run --project ~/repos/verkit verkit tag --no-push
-uv build
-uv publish
+oph version
+oph version release patch
 ```
 
-`verkit promote` and `verkit tag` commit the version bump and create a matching
-local tag; neither uploads artifacts to PyPI. When an `origin` remote is
-configured, use `verkit release patch` instead. Configure PyPI trusted publishing or provide credentials
-through `uv publish`'s supported environment mechanism; never save tokens in
-this repository. Verify the published version and install it from PyPI after
-upload.
+The release command uses Verkit to bump the project version, commit the bump,
+create the matching tag, and push the branch and tag. Use `--no-push` to create
+the release commit and tag locally for review. PyPI publishing runs through the
+repository's GitHub Actions trusted publishing workflow after the tag is pushed.

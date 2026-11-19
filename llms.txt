@@ -1,18 +1,23 @@
 # op-hello
 
-`op-hello` is a Python library and CLI for securely reading 1Password `op://`
-references with native CLI, service-account SDK, Windows Hello/DPAPI, and WSL
-fallbacks. Applications should use the public `op_hello` API rather than
-reimplement credential handling.
+> A Python library and CLI for resolving 1Password `op://` references. It supports Windows Hello through the Windows desktop app from native Windows and WSL, and uses the native 1Password CLI on macOS and Linux.
 
-- [README](README.md): installation, API, CLI, environment configuration.
-- [AGENTS.md](AGENTS.md): implementation, security, packaging, and release rules.
-- [API module](src/op_hello/__init__.py): `read`, `resolve`, `clear_cache`, `is_available`.
-- [CLI module](src/op_hello/cli.py): installed `op-hello` entry point.
-- [Shell helper](bin/op-hello): cross-platform CLI and fallback behavior.
-- [Windows reader](windows/op-read.ps1): Windows Hello, account selection, DPAPI cache.
-- [Tests](tests/test_op_hello.py): API and CLI behavior.
+The installable distribution is `op-hello`; Python applications import `op_hello`. The `op-hello` and `oph` commands are aliases to the same CLI. Use `oph version release patch` for Verkit-managed releases. Secret values are returned to the caller and are not written to diagnostic logs.
 
-Security: secret values are returned only to the caller; never log or expose
-references or values in diagnostics. Preserve account-scoped caching and all
-platform fallbacks.
+## Start here
+
+- [Full agent guide](llms-full.txt): platform behavior, installation, API, CLI, configuration, caching, and security details.
+- [README](README.md): installation and quick examples.
+
+## API and implementation
+
+- [Python API](src/op_hello/__init__.py): `read`, `resolve`, `is_available`, and `clear_cache`.
+- [Python CLI entry point](src/op_hello/cli.py): platform dispatch and Verkit release commands for `op-hello` and `oph`.
+- [Shell helper](bin/op-hello): CLI protocol, native Unix CLI, and WSL-to-Windows routing.
+- [Windows reader](windows/op-read.ps1): `op.exe`, Windows Hello integration, DPAPI cache, and optional AutoHotkey pause.
+- [Package metadata](pyproject.toml): dependencies, supported Python version, entry point, and packaged helpers.
+
+## Optional
+
+- [Agent implementation guide](AGENTS.md): architecture, security, and release practices.
+- [API/CLI tests](tests/test_op_hello.py): behavior examples for maintainers.

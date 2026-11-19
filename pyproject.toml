@@ -1,12 +1,14 @@
 [project]
 name = "op-hello"
-version = "0.2.3"
+version = "0.2.4"
 description = "Portable 1Password op:// secret reader with Windows Hello support"
 readme = "README.md"
 requires-python = ">=3.9"
+dependencies = ["verkit>=0.3.2"]
 
 [project.scripts]
 op-hello = "op_hello.cli:main"
+oph = "op_hello.cli:main"
 
 [project.optional-dependencies]
 sdk = ["onepassword-sdk>=0.4.2"]

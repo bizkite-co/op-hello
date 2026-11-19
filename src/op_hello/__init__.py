@@ -187,25 +187,47 @@ def _read_native_cli(*refs: str, account: Optional[str] = None) -> tuple[Optiona
     return values, None
 
 
+def _is_windows() -> bool:
+    return os.name == "nt"
+
+
 def _read_bundled_cli(*refs: str, account: Optional[str] = None) -> tuple[Optional[list[str]], Optional[str]]:
-    script = _bundled_script()
-    if not script.is_file():
-        return None, None
-    bash = shutil.which("bash")
-    if not bash:
-        return None, "The op-hello platform helper requires Bash."
     timeout = int(os.environ.get("OP_HELLO_TIMEOUT", "120"))
+    if _is_windows():
+        powershell = shutil.which("powershell.exe") or shutil.which("powershell")
+        package = Path(__file__).resolve().parent
+        script = package / "windows" / "op-read.ps1"
+        if not script.is_file():
+            script = Path(__file__).resolve().parents[2] / "windows" / "op-read.ps1"
+        if not powershell or not script.is_file():
+            return None, "Windows PowerShell helper is unavailable."
+        command = [
+            powershell,
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            str(script),
+            *refs,
+        ]
+    else:
+        script = _bundled_script()
+        if not script.is_file():
+            return None, None
+        bash = shutil.which("bash")
+        if not bash:
+            return None, "The op-hello platform helper requires Bash."
+        command = [bash, str(script), "read", *refs]
     try:
-        result = _run([bash, str(script), "read", *refs], timeout=timeout + 5, account=account)
+        result = _run(command, timeout=timeout + 5, account=account)
     except (OSError, subprocess.TimeoutExpired):
-        return None, "1Password Windows Hello timed out or the helper could not start."
+        return None, "1Password platform helper timed out or could not start."
     if result.returncode:
         return None, result.stderr.strip() or "1Password platform helper failed."
     lines = [line for line in result.stdout.splitlines() if line]
     if len(lines) != len(refs):
         return None, "1Password returned an unexpected number of values."
     return lines, None
-
 
 def _read_windows_cli(*refs: str, account: Optional[str] = None) -> tuple[Optional[list[str]], Optional[str]]:
     """Last-resort WSL path matching Cocli's Windows op.exe fallback."""
