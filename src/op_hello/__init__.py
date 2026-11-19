@@ -21,7 +21,7 @@ __all__ = ["clear_cache", "is_available", "read", "resolve"]
 
 logger = logging.getLogger(__name__)
 try:
-    _PACKAGE_VERSION = version("ophello")
+    _PACKAGE_VERSION = version("op-hello")
 except PackageNotFoundError:
     _PACKAGE_VERSION = "dev"
 _CACHE: dict[tuple[str, str], str] = {}

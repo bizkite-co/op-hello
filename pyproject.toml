@@ -1,12 +1,12 @@
 [project]
-name = "ophello"
-version = "0.2.2"
+name = "op-hello"
+version = "0.2.3"
 description = "Portable 1Password op:// secret reader with Windows Hello support"
 readme = "README.md"
 requires-python = ">=3.9"
 
 [project.scripts]
-op-hello = "ophello.cli:main"
+op-hello = "op_hello.cli:main"
 
 [project.optional-dependencies]
 sdk = ["onepassword-sdk>=0.4.2"]
@@ -16,16 +16,16 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/ophello"]
+packages = ["src/op_hello"]
 
 [tool.hatch.build.targets.wheel.sources]
-"src/ophello" = "ophello"
+"src/op_hello" = "op_hello"
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
 
 [tool.hatch.build.targets.wheel.force-include]
-"bin/op-hello" = "ophello/bin/op-hello"
-"windows/op-read.ps1" = "ophello/windows/op-read.ps1"
-"windows/ahk-pause.ps1" = "ophello/windows/ahk-pause.ps1"
+"bin/op-hello" = "op_hello/bin/op-hello"
+"windows/op-read.ps1" = "op_hello/windows/op-read.ps1"
+"windows/ahk-pause.ps1" = "op_hello/windows/ahk-pause.ps1"

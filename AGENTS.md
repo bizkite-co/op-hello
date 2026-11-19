@@ -3,8 +3,8 @@
 ## Purpose
 
 `op-hello` is a portable Python library and CLI for reading 1Password `op://`
-references. Applications should use `ophello.read`, `ophello.resolve`, and
-`ophello.clear_cache`; do not duplicate its platform/authentication logic.
+references. Applications should use `op_hello.read`, `op_hello.resolve`, and
+`op_hello.clear_cache`; do not duplicate its platform/authentication logic.
 
 ## Architecture and behavior
 
@@ -24,8 +24,8 @@ references. Applications should use `ophello.read`, `ophello.resolve`, and
 
 ## Packaging and platform files
 
-- The installable package is `src/ophello`; the `op-hello` console command is
-  declared by `[project.scripts]` and delegates to the packaged helper.
+- The PyPI distribution and console command are `op-hello`; the Python import
+  package is `src/op_hello` and applications import `op_hello`.
 - `pyproject.toml` force-includes `bin/op-hello` and Windows PowerShell helpers
   in the wheel. Preserve those paths when changing package layout.
 - Keep account selection and caching behavior consistent across Python, Bash,

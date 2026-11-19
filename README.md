@@ -11,14 +11,14 @@ op-hello resolve "$API_TOKEN"
 Install the published package, or use this checkout for local development:
 
 ```bash
-uv add ophello
+uv add op-hello
 uv add --editable ../op-hello
 ```
 
 Install the optional SDK extra to use service-account authentication:
 
 ```bash
-uv add "ophello[sdk]"
+uv add "op-hello[sdk]"
 ```
 
 The public Python API is suitable for application adapters and plugins. It
@@ -34,7 +34,7 @@ Python projects that already use this checkout:
 ```python
 import os
 
-from ophello import clear_cache, read, resolve
+from op_hello import clear_cache, read, resolve
 
 token = resolve(os.environ["API_TOKEN"])
 ```
@@ -66,7 +66,7 @@ take the time:
 |---|---|
 | `bin/op-hello` | The program other languages call |
 | `windows/op-read.ps1` | Windows Hello, DPAPI cache, optional AutoHotkey pause |
-| `src/ophello/` | `resolve()` and `read()` for Python |
+| `src/op_hello/` | `resolve()` and `read()` for Python |
 
 PowerShell is the Windows implementation because Hello, DPAPI, and AutoHotkey are Windows APIs. A Go or Rust binary would still shell out to `op.exe` and reimplement those calls. On macOS and Linux, `op-hello` calls `op read` and the system biometric prompt is the 1Password app's own. The installed CLI and Python library share this same platform helper.
 

@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from ophello import read, resolve
+from op_hello import read, resolve
 
 ROOT = Path(__file__).resolve().parents[1]
 CLI = ROOT / "bin" / "op-hello"
@@ -12,9 +12,9 @@ CLI = ROOT / "bin" / "op-hello"
 
 @pytest.fixture(autouse=True)
 def _clear_cache() -> None:
-    import ophello
+    import op_hello
 
-    ophello._CACHE.clear()
+    op_hello._CACHE.clear()
 
 
 def test_resolve_leaves_literals_alone(monkeypatch: pytest.MonkeyPatch) -> None:
